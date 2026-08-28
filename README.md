@@ -14,9 +14,16 @@
 
 ## Установка и запуск
 
-1. Распакуйте `DayFlow-Windows-x64.zip`
-2. Запустите **`DayFlow.exe`**
-3. Готово. Приложение само пропишется в автозагрузку (отключить можно в ⚙️ Настройках или в меню иконки в трее)
+**Способ 1 — установщик (рекомендуется):**
+1. Скачайте `DayFlow-Setup-1.0.0.exe` (в папке `release/`)
+2. Запустите — мастер с фирменным оформлением установит DayFlow, создаст ярлыки на рабочем столе и в меню «Пуск» и предложит запустить приложение
+3. Удаление — через «Удалить DayFlow» в меню «Пуск»
+
+**Способ 2 — портативная версия:**
+1. Соберите или распакуйте `DayFlow-Windows-x64.zip`
+2. Запустите **`DayFlow.exe`** (установка не требуется)
+
+Приложение само пропишется в автозагрузку (отключить можно в ⚙️ Настройках или в меню иконки в трее).
 
 > Данные хранятся локально на вашем компьютере — ничего не отправляется в интернет.
 
@@ -25,14 +32,24 @@
 Требуется: Linux/macOS с `npm`, `zip`, `tar`.
 
 ```bash
-./build.sh                       # скачает рантайм NW.js из npm и соберёт релиз
-# или с готовым архивом рантайма:
-./build.sh nwjs-binaries-win-x64-0.87.0-sdk.tgz
+./build.sh                       # портативная сборка → release/DayFlow-Windows-x64.zip
+./build-installer.sh             # установщик NSIS → release/DayFlow-Setup-1.0.0.exe
 ```
 
-Результат: `release/DayFlow-Windows-x64.zip`.
-
 Рантайм берётся из npm-пакета `@nwjs-binaries/win-x64` (полный Chromium+Node — не требует других CDN).
+
+### Сборка установщика (NSIS)
+
+Для установщика нужен компилятор `makensis` (Linux) и комплект NSIS:
+
+```bash
+npm pack @nsis-u/makensis   # stubs/Include/Plugins/MUI2 (весь NSIS 3.03)
+# Linux-бинарник makensis собирается из исходников (tag v303 репозитория negrutiu/nsis):
+#   pip install scons && scons SKIPSTUBS=all SKIPPLUGINS=all SKIPUTILS=all SKIPMISC=all \
+#     NSIS_CONFIG_CONST_DATA_PATH=no PREFIX=<nsis-dir> install-compiler
+export NSISDIR=<nsis-dir>   # папка, где лежат Stubs/ Include/ Plugins/
+./build-installer.sh
+```
 
 ## Структура
 
@@ -42,4 +59,5 @@
 - `renderer/nw-bridge.js` — мост с рабочим столом (трей, автозапуск через реестр, уведомления)
 - `vendor/` — Three.js (без сети)
 - `assets/` — иконки
+- `installer/` — скрипт NSIS и баннеры установщика
 - `smoke-test.js` — автотест логики интерфейса (`npm i jsdom && node smoke-test.js`)
