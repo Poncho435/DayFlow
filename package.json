@@ -1,54 +1,19 @@
 {
   "name": "dayflow",
-  "productName": "DayFlow",
   "version": "1.0.0",
   "description": "DayFlow — умный календарь, планировщик и 3D-хроника дня",
+  "main": "renderer/index.html",
   "author": "DayFlow",
   "license": "MIT",
-  "main": "main.js",
-  "scripts": {
-    "start": "electron .",
-    "pack": "electron-builder --dir",
-    "dist:win": "electron-builder --win nsis portable"
+  "window": {
+    "title": "DayFlow",
+    "icon": "assets/icon.png",
+    "width": 1320,
+    "height": 860,
+    "min_width": 1024,
+    "min_height": 660,
+    "position": "center",
+    "show_in_taskbar": true
   },
-  "devDependencies": {
-    "electron": "31.7.7",
-    "electron-builder": "25.1.8"
-  },
-  "dependencies": {},
-  "build": {
-    "appId": "com.dayflow.app",
-    "productName": "DayFlow",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "renderer/**/*",
-      "vendor/**/*",
-      "assets/**/*",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
-      ],
-      "icon": "assets/icon.ico",
-      "signAndEditExecutable": false
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "DayFlow",
-      "artifactName": "DayFlow-Setup-${version}.${ext}"
-    },
-    "portable": {
-      "artifactName": "DayFlow-Portable-${version}.${ext}"
-    }
-  }
+  "chromium-args": "--disable-pinch --force-color-profile=srgb"
 }

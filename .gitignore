@@ -3,5 +3,6 @@ release/
 dist/
 out/
 *.log
+*.tgz
 .DS_Store
 assets/icon_src.png
