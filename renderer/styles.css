@@ -372,7 +372,7 @@ input, select, textarea { font-family: inherit; color: var(--text); }
   background: #12162a; border: 1px solid var(--border-strong); border-radius: 20px;
   box-shadow: var(--shadow); animation: popIn .22s cubic-bezier(.2,.9,.3,1.2);
 }
-.modal.sm-modal { width: 440px; }
+.modal.sm-modal { width: 500px; }
 @keyframes popIn { from { opacity: 0; transform: scale(.96) translateY(10px); } to { opacity: 1; transform: none; } }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 6px; }
 .modal-head h3 { font-size: 19px; font-weight: 800; }
@@ -393,10 +393,24 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 .spacer { flex: 1; }
 
 /* ================= Settings ================= */
-.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.settings-section {
+  font-size: 12.5px; font-weight: 700; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 1px;
+  padding: 16px 0 4px;
+}
+.settings-section:first-child { padding-top: 0; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--border); }
 .setting-row:last-of-type { border-bottom: none; }
 .setting-label { font-size: 14.5px; font-weight: 600; }
-.setting-desc { font-size: 12.5px; color: var(--text-faint); margin-top: 3px; }
+.setting-desc { font-size: 12.5px; color: var(--text-faint); margin-top: 3px; line-height: 1.35; }
+.setting-select {
+  flex-shrink: 0; width: 150px; padding: 8px 10px; border-radius: 9px;
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+  font-size: 13px; outline: none; cursor: pointer;
+  transition: border-color .15s;
+}
+.setting-select:focus { border-color: var(--accent); }
+.setting-select option { background: #1a1f36; }
 
 .switch { position: relative; display: inline-block; width: 46px; height: 26px; flex-shrink: 0; }
 .switch input { opacity: 0; width: 0; height: 0; }
@@ -405,17 +419,17 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 .switch input:checked + .slider { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent; }
 .switch input:checked + .slider::before { transform: translateX(20px); }
 
-/* ================= Reminder overlay ================= */
+/* ================= Reminder overlay (fullscreen black) ================= */
 .reminder-overlay {
   position: fixed; inset: 0; z-index: 200;
-  background: rgba(5, 7, 14, 0.7); backdrop-filter: blur(8px);
+  background: #000; /* полностью чёрный экран поверх всего */
   display: grid; place-items: center; animation: fadeIn .18s ease;
 }
 .reminder-card {
-  width: 420px; max-width: 92vw; text-align: center;
-  background: linear-gradient(160deg, #1a2038, #12162a);
-  border: 1px solid var(--border-strong); border-radius: 22px;
-  padding: 34px 30px; box-shadow: 0 30px 80px rgba(0,0,0,.6);
+  width: 480px; max-width: 92vw; text-align: center;
+  background: linear-gradient(160deg, #1a2038, #10131f);
+  border: 1px solid var(--border-strong); border-radius: 24px;
+  padding: 44px 38px; box-shadow: 0 30px 90px rgba(0,0,0,.8), 0 0 60px rgba(109,124,255,.12);
   animation: popIn .3s cubic-bezier(.2,.9,.3,1.2);
 }
 .reminder-bell {

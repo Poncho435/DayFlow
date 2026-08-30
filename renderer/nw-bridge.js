@@ -141,6 +141,14 @@
     },
     quit: () => { quitting = true; nw.App.quit(); },
     focusWindow: () => { try { win.show(); win.focus(); } catch (e) {} },
+    // Показывать окно поверх всех остальных приложений (для напоминаний)
+    setAlwaysOnTop: (flag) => { try { win.setAlwaysOnTop(!!flag); } catch (e) {} },
+    // Развернуть окно на весь экран
+    maximize: () => { try { win.maximize(); } catch (e) {} },
+    // Вернуть окно из развёрнутого состояния
+    unmaximize: () => { try { win.unmaximize(); } catch (e) {} },
+    // Мигание в панели задач
+    flashFrame: (flag) => { try { win.flashFrame(!!flag); } catch (e) {} },
     onFocusReminders: (cb) => { focusCb = cb; }
   };
 

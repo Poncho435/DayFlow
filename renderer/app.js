@@ -57,7 +57,15 @@ const STORE_KEY = 'dayflow.data.v1';
 let state = {
   events: [],
   tasks: [],
-  settings: { sound: true, tray: true },
+  settings: {
+    sound: true,          // постоянный звуковой сигнал
+    soundDuration: 180,   // секунд звучания (3 мин), 0 = пока не нажмут кнопку
+    snoozeMinutes: 10,    // через сколько напомнить снова
+    tray: true,           // сворачивать в трей
+    reminders: true,      // мастер-выключатель напоминаний
+    alwaysOnTop: true,    // окно напоминания поверх всех приложений
+    nativeNotif: true     // системное уведомление Windows
+  },
   firedReminders: {},
   snoozed: {}
 };
@@ -570,6 +578,7 @@ function reminderTime(ev, now) {
 }
 
 function checkReminders() {
+  if (state.settings.reminders === false) return; // напоминания выключены
   const now = new Date();
   let changed = false;
   state.events.forEach((ev) => {
@@ -604,51 +613,85 @@ function fireReminder(ev, key) {
   state.firedReminders[key] = true;
   saveState();
 
-  // show in-app popup
+  // показать полноэкранное окно напоминания
   showReminderPopup(ev, key);
 
-  // native notification
-  if (window.dayflow && window.dayflow.nativeNotify) {
+  // системное уведомление Windows
+  if (state.settings.nativeNotif !== false && window.dayflow && window.dayflow.nativeNotify) {
     window.dayflow.nativeNotify({ title: '🔔 ' + ev.title, body: `Начинается в ${ev.start} · ${catLabel(ev.category)}` });
   }
-  // sound
-  if (state.settings.sound) playChime();
+
+  // постоянный звуковой сигнал на заданное время
+  if (state.settings.sound) {
+    const dur = parseInt(state.settings.soundDuration, 10);
+    startAlarm(isNaN(dur) ? 180 : dur);
+  }
 }
 
 let currentReminderKey = null;
 
 function showReminderPopup(ev, key) {
   currentReminderKey = key;
-  const start = new Date(`${ev.date}T${ev.start}`);
   $('#reminderTime').textContent = `${relativeDay(ev.date)} · ${ev.start}`;
   $('#reminderTitle').textContent = ev.title;
   $('#reminderMeta').textContent = `${catLabel(ev.category)} · ${PRIORITY[ev.priority].label} приоритет · до ${ev.end}`;
   const notes = $('#reminderNotes');
   if (ev.notes) { notes.hidden = false; notes.textContent = ev.notes; } else { notes.hidden = true; }
   $('#reminderOverlay').hidden = false;
-  // bring window to front
-  if (window.dayflow && window.dayflow.focusWindow) window.dayflow.focusWindow();
+
+  // подпись кнопки «Отложить»
+  const snoozeLabel = $('#reminderSnooze');
+  if (snoozeLabel) {
+    const m = parseInt(state.settings.snoozeMinutes, 10) || 10;
+    snoozeLabel.textContent = `Отложить (${m} мин)`;
+  }
+
+  // вывести окно поверх всех приложений и развернуть
+  if (window.dayflow) {
+    if (state.settings.alwaysOnTop !== false) {
+      if (window.dayflow.setAlwaysOnTop) window.dayflow.setAlwaysOnTop(true);
+      if (window.dayflow.maximize) window.dayflow.maximize();
+    }
+    if (window.dayflow.focusWindow) window.dayflow.focusWindow();
+    if (window.dayflow.flashFrame) window.dayflow.flashFrame(true);
+  }
 }
 
 function dismissReminder() {
   $('#reminderOverlay').hidden = true;
   currentReminderKey = null;
+  stopAlarm();
+  resetWindowState();
   renderBellBadge();
 }
 
 function snoozeReminder() {
   if (currentReminderKey) {
     state.snoozed = state.snoozed || {};
-    state.snoozed[currentReminderKey] = Date.now() + 10 * 60000;
+    const m = parseInt(state.settings.snoozeMinutes, 10) || 10;
+    state.snoozed[currentReminderKey] = Date.now() + m * 60000;
     delete state.firedReminders[currentReminderKey];
     saveState();
   }
+  const m = parseInt(state.settings.snoozeMinutes, 10) || 10;
   dismissReminder();
-  toast('Напомню через 10 минут', 'info');
+  toast(`Напомню через ${m} мин`, 'info');
 }
 
-// --- Chime (Web Audio, synthesized) ---
+// Вернуть окно в обычное состояние после закрытия напоминания
+function resetWindowState() {
+  if (window.dayflow) {
+    if (window.dayflow.setAlwaysOnTop) window.dayflow.setAlwaysOnTop(false);
+    if (window.dayflow.unmaximize) window.dayflow.unmaximize();
+    if (window.dayflow.flashFrame) window.dayflow.flashFrame(false);
+  }
+}
+
+// --- Persistent alarm sound («пи-пи-пи… пилим-пилим…») ---
 let audioCtx = null;
+let alarmInterval = null;   // интервал повторения рисунка сигнала
+let alarmTimer = null;      // таймер остановки через N минут
+
 function ensureAudio() {
   if (!audioCtx) {
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -658,29 +701,48 @@ function ensureAudio() {
   return audioCtx;
 }
 
-function playChime() {
+// Один короткий «бип» на частоте freq (Гц) длительностью dur (сек)
+function alarmBeep(ctx, t, freq, dur) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'square';            // «пищащий» будильник
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.16, t + 0.015);
+  gain.gain.setValueAtTime(0.16, t + dur - 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t);
+  osc.stop(t + dur + 0.05);
+}
+
+// Рисунок: «пи пи пи — пилим пилим» (3 коротких высоких + 2 длинных ниже)
+function alarmPattern(ctx) {
+  const now = ctx.currentTime;
+  alarmBeep(ctx, now,        950, 0.14);   // пи
+  alarmBeep(ctx, now + 0.22, 950, 0.14);   // пи
+  alarmBeep(ctx, now + 0.44, 950, 0.14);   // пи
+  alarmBeep(ctx, now + 0.72, 660, 0.28);   // пи-лим
+  alarmBeep(ctx, now + 1.04, 660, 0.28);   // пи-лим
+}
+
+function startAlarm(durationSec) {
+  stopAlarm();
   const ctx = ensureAudio();
   if (!ctx) return;
-  const now = ctx.currentTime;
-  const notes = [
-    { f: 523.25, t: 0 },       // C5
-    { f: 659.25, t: 0.14 },    // E5
-    { f: 783.99, t: 0.28 },    // G5
-    { f: 1046.5, t: 0.42 }     // C6
-  ];
-  notes.forEach((n) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = n.f;
-    const start = now + n.t;
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.22, start + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.1);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(start);
-    osc.stop(start + 1.2);
-  });
+  alarmPattern(ctx);
+  alarmInterval = setInterval(() => {
+    const c = ensureAudio();
+    if (c) alarmPattern(c);
+  }, 1500);
+  if (durationSec > 0) {
+    alarmTimer = setTimeout(() => stopAlarm(), durationSec * 1000);
+  }
+}
+
+function stopAlarm() {
+  if (alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
+  if (alarmTimer) { clearTimeout(alarmTimer); alarmTimer = null; }
 }
 
 // ---------------------------------------------------------------------------
@@ -777,7 +839,12 @@ function bindEvents() {
   $('#btnSettings').addEventListener('click', openSettings);
   $('#settingsClose').addEventListener('click', () => $('#settingsBackdrop').hidden = true);
   $('#settingsBackdrop').addEventListener('click', (e) => { if (e.target === e.currentTarget) $('#settingsBackdrop').hidden = true; });
-  $('#setSound').addEventListener('change', (e) => { state.settings.sound = e.target.checked; saveState(); });
+  $('#setReminders').addEventListener('change', (e) => { state.settings.reminders = e.target.checked; saveState(); });
+  $('#setAlwaysOnTop').addEventListener('change', (e) => { state.settings.alwaysOnTop = e.target.checked; saveState(); });
+  $('#setNativeNotif').addEventListener('change', (e) => { state.settings.nativeNotif = e.target.checked; saveState(); });
+  $('#setSound').addEventListener('change', (e) => { state.settings.sound = e.target.checked; if (!e.target.checked) stopAlarm(); saveState(); });
+  $('#setSoundDuration').addEventListener('change', (e) => { state.settings.soundDuration = parseInt(e.target.value, 10); saveState(); });
+  $('#setSnooze').addEventListener('change', (e) => { state.settings.snoozeMinutes = parseInt(e.target.value, 10); saveState(); });
   $('#setTray').addEventListener('change', (e) => { state.settings.tray = e.target.checked; saveState(); });
   $('#setAutostart').addEventListener('change', async (e) => {
     const enabled = e.target.checked;
@@ -812,7 +879,12 @@ function bindEvents() {
 
 async function openSettings() {
   $('#settingsBackdrop').hidden = false;
+  $('#setReminders').checked = state.settings.reminders !== false;
+  $('#setAlwaysOnTop').checked = state.settings.alwaysOnTop !== false;
+  $('#setNativeNotif').checked = state.settings.nativeNotif !== false;
   $('#setSound').checked = !!state.settings.sound;
+  $('#setSoundDuration').value = String(state.settings.soundDuration != null ? state.settings.soundDuration : 180);
+  $('#setSnooze').value = String(state.settings.snoozeMinutes != null ? state.settings.snoozeMinutes : 10);
   $('#setTray').checked = !!state.settings.tray;
   if (window.dayflow && window.dayflow.getAutostart) {
     $('#setAutostart').checked = await window.dayflow.getAutostart();
