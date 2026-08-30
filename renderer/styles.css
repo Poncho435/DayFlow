@@ -45,6 +45,9 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Элементы с атрибутом hidden всегда скрыты, даже если у них задан display: flex/grid */
+[hidden] { display: none !important; }
+
 html, body {
   height: 100%;
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;

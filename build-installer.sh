@@ -32,10 +32,12 @@ cp -r "$OUT/DayFlow/." "$STAGE/app/"
 cp "$APP_DIR/installer/assets/header.bmp" "$STAGE/assets/"
 cp "$APP_DIR/installer/assets/welcome.bmp" "$STAGE/assets/"
 cp "$APP_DIR/assets/icon.ico" "$STAGE/assets/"
+# .nsi тоже копируем в staging, чтобы относительные пути (assets\*) резолвились корректно
+cp "$APP_DIR/installer/DayFlow-Setup.nsi" "$STAGE/"
 
 # --- 3. Компилируем установщик ---
 echo "▶ Компиляция установщика…"
-( cd "$STAGE" && "$MAKENSIS" "$APP_DIR/installer/DayFlow-Setup.nsi" )
+( cd "$STAGE" && "$MAKENSIS" "DayFlow-Setup.nsi" )
 
 cp "$STAGE/DayFlow-Setup-1.0.0.exe" "$OUT/"
 
